@@ -76,7 +76,8 @@ ENV UV_SYSTEM_PYTHON=1
 ENV UV_BREAK_SYSTEM_PACKAGES=1
 ENV UV_COMPILE_BYTECODE=1
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /usr/local/bin/uv
+ADD https://astral.sh/uv/0.11.2/install.sh /uv-installer.sh
+RUN UV_UNMANAGED_INSTALL=/usr/local/bin sh /uv-installer.sh && rm /uv-installer.sh
 
 COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
 COPY patches/ patches/
