@@ -76,14 +76,15 @@ ENV UV_SYSTEM_PYTHON=1
 ENV UV_BREAK_SYSTEM_PACKAGES=1
 ENV UV_COMPILE_BYTECODE=1
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.2 /uv /usr/local/bin/uv
+ADD https://astral.sh/uv/0.11.2/install.sh /uv-installer.sh
+RUN UV_UNMANAGED_INSTALL=/usr/local/bin sh /uv-installer.sh && rm /uv-installer.sh
 
 COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
 COPY patches/ patches/
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
-        zlib-dev cargo llmdev openblas-dev libsndfile-dev && \
+        zlib-dev cargo  openblas-dev libsndfile-dev && \
     apk add --no-cache --upgrade su-exec python3 libev chromaprint ffmpeg \
         gstreamer flac keyfinder-cli libsndfile mp3gain openblas && \
     apk add --no-cache --allow-untrusted /pkgs/* && \

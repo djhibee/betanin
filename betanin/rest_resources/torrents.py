@@ -13,8 +13,7 @@ from betanin.rest.base import allow_api_key
 from betanin.extensions import DB
 from betanin.rest_models import request as req_models
 from betanin.rest_models import response as resp_models
-from betanin.rest.namespaces import TORRENTS_NS
-
+from betanin.rest.namespaces import TORRENTS_NS 
 
 def _is_within(path, root):
     root = os.path.realpath(root)

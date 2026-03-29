@@ -1,23 +1,23 @@
 # standard library
 import os
-import shutil
 import os.path
+import shutil
 
 # 3rd party
 import gevent
 import gevent.lock
 import gevent.monkey
+from gevent.queue import Queue
 from loguru import logger
 from ptyprocess import PtyProcessUnicode
-from gevent.queue import Queue
 
 # betanin
 from betanin import events
 from betanin import notifications
+from betanin.extensions import DB
 from betanin.models import Line
 from betanin.models import Torrent
 from betanin.status import Status
-from betanin.extensions import DB
 import betanin.config.betanin as conf_betanin
 
 
@@ -122,8 +122,7 @@ def retry(torrent_id):
     DB.session.commit()
     _add_line(
         torrent,
-        "[betanin] retrying... "
-        f"(there are {len(QUEUE)} items in the queue)",
+        f"[betanin] retrying... (there are {len(QUEUE)} items in the queue)",
     )
     events.send_torrent(torrent)
     QUEUE.put_nowait(torrent.id)

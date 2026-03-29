@@ -12,14 +12,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: 'npm' # Active le cache npm automatique
           cache-dependency-path: betanin_client/package-lock.json
-
       - name: Install dependencies
         run: npm ci # Version stricte et rapide pour le CI/CD
         working-directory: betanin_client
@@ -38,10 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: install uv
-        uses: astral-sh/setup-uv@v5
-
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: uv sync --all-extras
       - name: Lint and check formatting
