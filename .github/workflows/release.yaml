@@ -39,7 +39,6 @@ jobs:
         run: uv sync --all-extras
       - name: Lint and check formatting
         run: uv run ruff check $(git ls-files "*.py") && uv run ruff format --check $(git ls-files "*.py")
-
   release-please:
     name: Run Release Please
     runs-on: ubuntu-latest

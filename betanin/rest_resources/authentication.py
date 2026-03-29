@@ -8,9 +8,9 @@ from werkzeug.exceptions import TooManyRequests
 import betanin.config.betanin as conf_betanin
 from betanin import rate_limit
 from betanin.rest.base import BaseResource
+from betanin.rest.namespaces import AUTHENTICATION_NS
 from betanin.rest_models import request as req_models
 from betanin.rest_models import response as resp_models
-from betanin.rest.namespaces import AUTHENTICATION_NS
 
 
 @AUTHENTICATION_NS.route("/login")
