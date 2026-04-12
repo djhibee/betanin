@@ -2,6 +2,7 @@
 import random
 import string
 from string import Template
+from types import SimpleNamespace
 
 # 3rd party
 import gevent
@@ -128,15 +129,12 @@ def send(torrent):
 
 
 def send_async(torrent):
-    # Snapshot the ORM attributes now, while we still hold a Flask app/session
-    # context. The spawned greenlet has no app context, so accessing torrent.*
-    # inside it can trigger a lazy DB reload that raises "Working outside of
-    # application context" (and the notification is silently lost). Passing
-    # plain values keeps the greenlet completely DB-free.
     gevent.spawn(
-        _send_values,
-        torrent.name,
-        torrent.id,
-        torrent.updated,
-        torrent.status,
+        send,
+        SimpleNamespace(
+            id=torrent.id,
+            name=torrent.name,
+            updated=torrent.updated,
+            status=torrent.status,
+        ),
     )
