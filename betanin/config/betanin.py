@@ -19,7 +19,7 @@ DEFAULT_CONFIG = {
         },
     },
     "clients": {"api_key": ""},
-    "server": {"num_parallel_jobs": 1},
+    "server": {"num_parallel_jobs": 1, "beet_quiet": False},
 }
 
 
@@ -61,3 +61,7 @@ def find_api_key_correct(conf, api_key):
 
 def find_num_parallel_jobs(conf):
     return conf.get("server", {}).get("num_parallel_jobs", 1)
+
+
+def find_beet_quiet(conf):
+    return conf.get("server", {}).get("beet_quiet", False)

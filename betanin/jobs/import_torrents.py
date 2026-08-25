@@ -15,6 +15,7 @@ from betanin.models import Line
 from betanin.models import Torrent
 from betanin.status import Status
 from betanin.extensions import DB
+import betanin.config.betanin as conf_betanin
 
 
 BEET_NAME = "beet"
@@ -66,14 +67,12 @@ def _import_torrent(torrent):
         _add_line(torrent, f"program {BEET_NAME} is not in $PATH")
         return
 
-    proc = PtyProcessUnicode.spawn(
-        [
-            BEET_NAME,
-            "import",
-            "--noresume",
-            _calculate_import_path(torrent),
-        ]
-    )
+    argv = [BEET_NAME, "import"]
+    if conf_betanin.find_beet_quiet(conf_betanin.read()):
+        argv.append("-q")
+    argv += ["--noresume", _calculate_import_path(torrent)]
+
+    proc = PtyProcessUnicode.spawn(argv)
     PROCESSES[torrent.id] = proc
     _read_and_send_pty_out(proc, torrent)
     exit_status = _right_exit_status(proc.exitstatus)
