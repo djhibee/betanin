@@ -53,7 +53,7 @@ COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 # The stub package is what makes the split possible -- `pip install .` needs a
 # package to exist before it will resolve the dependencies in pyproject.toml.
 # It is overwritten by the real install further down.
-COPY requirements-docker.txt pyproject.toml version.txt README.md ./
+COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
@@ -62,8 +62,8 @@ RUN mkdir -p betanin && touch betanin/__init__.py && \
         gstreamer flac keyfinder-cli libsndfile && \
     apk add --no-cache --allow-untrusted /pkgs/* && \
     env LLVM_CONFIG="$(which llvm14-config)" pip install --no-cache-dir . \
-        --requirement requirements-docker.txt && \
-    pip install --no-cache-dir soundfile && \
+        --requirement requirements-docker.txt --constraint constraints.txt && \
+    pip install --no-cache-dir soundfile --constraint constraints.txt && \
     apk del --purge build-dependencies && \
     rm -rf /pkgs ~/.cache betanin
 
