@@ -1,14 +1,39 @@
-beets @ https://github.com/beetbox/beets/archive/master.zip
-beets-lidarr-fields
-python3-discogs-client
-beets-noimport
-pyacoustid
-pylast
-requests
-beautifulsoup4
-beets-extrafiles
-pillow
-unidecode
-jsonpath-rw
-pyyaml
-beets-bpmanalyser @ https://github.com/adamjakab/BeetsPluginBpmAnalyser/archive/devel.zip
+# Every dependency here is pinned to the exact version running in production.
+#
+# Upstream left this file almost entirely unconstrained: `beets` and
+# `beets-bpmanalyser` were installed from moving git branches, and the twelve
+# PyPI entries had no version specifiers at all. That made every image build
+# non-reproducible -- and beets is where all of our match tuning lives, so an
+# unannounced beets jump silently changes import behaviour.
+#
+# Two of these are pinned by commit rather than version, and have to be:
+#
+#   beets              1.6.1 here is a *master snapshot*, not the PyPI 1.6.1
+#                      release (which is older). Only a commit identifies it.
+#   beets-bpmanalyser  1.3.4 was never published to PyPI at all -- that project's
+#                      releases skip 1.3.3 -> 1.4.0. It also used to be fetched
+#                      from a `devel` branch that has since been DELETED
+#                      upstream, so the old URL is a hard 404 and no build using
+#                      it can succeed. This is the line that unbreaks the build.
+#
+# Versions were recovered from the site-packages of the running container, and
+# the two commits identified by matching every installed file against upstream
+# git trees (beets: 107/107 files byte-identical).
+#
+# Bump deliberately, one at a time. See docs/FORK.md.
+
+beets @ https://github.com/beetbox/beets/archive/296f01b775d3c48fa720d487e9887c074f3b3194.zip
+beets-bpmanalyser @ https://github.com/adamjakab/BeetsPluginBpmAnalyser/archive/ed621feffba9e8d7b1154e230176144311355724.zip
+
+beets-lidarr-fields==1.1.2
+beets-noimport==0.1.0b5
+beets-extrafiles==0.0.7
+python3-discogs-client==2.7
+pyacoustid==1.3.0
+pylast==5.2.0
+requests==2.31.0
+beautifulsoup4==4.12.2
+pillow==10.1.0
+unidecode==1.3.7
+jsonpath-rw==1.4.0
+pyyaml==6.0.1
