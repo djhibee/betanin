@@ -114,6 +114,49 @@ nothing. Still true in upstream 0.6.3.
 Fixing it is a real change in behaviour — a lot of currently-green history would
 have been red — so it is deliberately not bundled in with the fork itself.
 
+## Known cosmetic issue: an ignored traceback at every import
+
+Every import console now opens with:
+
+```
+Exception ignored in: <function _after_fork at 0x...>
+  ...
+AssertionError: Thread.__init__() not called
+```
+
+It is harmless, it is not our code, and it is not a regression in betanin. It
+is a consequence of the base image's Python moving 3.11.6 -> 3.11.12.
+
+CPython added exactly one block to `threading._after_fork` between those
+versions:
+
+```python
+if isinstance(thread, _DummyThread):
+    thread.__class__ = _MainThread
+    thread._name = 'MainThread'
+    thread._daemonic = False
+    thread._set_tstate_lock()
+```
+
+gevent registers its hub as a `_DummyThread`, and `_DummyThread` never runs
+`Thread.__init__`, so `self._initialized` is False. The new code calls
+`_set_tstate_lock()`, which reads `self.daemon`, which asserts on
+`_initialized`. Every frame in the traceback is this block.
+
+It fires in the forked child between `fork()` and `execv()` inside
+`PtyProcessUnicode.spawn`. CPython prints it and continues; the child then
+execs `beet` immediately, so nothing depends on the lock that failed to be set.
+Imports complete normally with correct MusicBrainz matches and exit status 0.
+
+If the noise ever becomes worth removing, the options are: pin the base to an
+Alpine point release still shipping 3.11.6 (restores exact parity, at the cost
+of an older base receiving fewer security fixes), or bump gevent, which is not
+in beets' matching path and is therefore a low-risk pin to relax. Neither is
+worth doing for cosmetics alone.
+
+This is also the concrete example of what the Dockerfile comment means when it
+says the OS layer reproduces forward but not backward.
+
 ## Moving to a 0.6.x base
 
 Not done, and not a routine bump. The known work:
