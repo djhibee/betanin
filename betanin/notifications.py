@@ -104,17 +104,17 @@ def update_strings(strings):
         config["notifications"]["strings"] = strings
 
 
-def send(torrent):
+def _send_values(name, tid, updated, status):
     config = conf_betanin.read()
     templates = _make_templates(config)
     variables = {
-        "name": torrent.name,
-        "id": torrent.id,
-        "time": torrent.updated,
-        "console_path": f"#/torrents/console/{torrent.id}",
+        "name": name,
+        "id": tid,
+        "time": updated,
+        "console_path": f"#/torrents/console/{tid}",
         "status": STATUS_LONG.get(
-            torrent.status,  # custom
-            f"has status {torrent.status.name.lower()}",  # default
+            status,  # custom
+            f"has status {status.name.lower()}",  # default
         ),
     }
     APPRISE.notify(
@@ -123,5 +123,20 @@ def send(torrent):
     )
 
 
+def send(torrent):
+    _send_values(torrent.name, torrent.id, torrent.updated, torrent.status)
+
+
 def send_async(torrent):
-    gevent.spawn(send, torrent)
+    # Snapshot the ORM attributes now, while we still hold a Flask app/session
+    # context. The spawned greenlet has no app context, so accessing torrent.*
+    # inside it can trigger a lazy DB reload that raises "Working outside of
+    # application context" (and the notification is silently lost). Passing
+    # plain values keeps the greenlet completely DB-free.
+    gevent.spawn(
+        _send_values,
+        torrent.name,
+        torrent.id,
+        torrent.updated,
+        torrent.status,
+    )
