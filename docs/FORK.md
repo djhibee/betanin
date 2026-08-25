@@ -68,6 +68,36 @@ Both commits were identified by extracting the running container's
 `site-packages` and matching every installed file against upstream git trees by
 blob hash. For beets that is 107 of 107 files byte-identical.
 
+### Two files, not one
+
+`requirements-docker.txt` pins what the Dockerfile installs by name.
+`constraints.txt` pins **everything else** — betanin's own `pyproject.toml`
+dependencies, which carry no version specifiers, and the entire transitive
+closure beneath them.
+
+The second file is not belt-and-braces. Building with only the first pinned was
+tried, and the result had beets byte-for-byte identical to production while
+sixty-odd other packages had moved, including:
+
+```
+jellyfish   1.0.3  -> 1.2.1     string distance; feeds beets match scores
+mediafile   0.12.0 -> 0.17.0    beets' tag reader/writer
+confuse     2.0.1  -> 2.2.1     beets' config parser
+numpy       1.26.2 -> 2.4.6     major version
+```
+
+`jellyfish` is the one to understand. It computes how close a candidate release
+is to what is on disk, which determines whether the match clears
+`match.strong_rec_thresh` — which determines whether an album imports silently
+or stops and asks a human. Pinning beets alone would have reproduced beets and
+still changed which albums import.
+
+`constraints.txt` is generated from the site-packages of the running container,
+so it locks to a set known to work rather than to whatever resolves today.
+`beets` and `beets-bpmanalyser` are deliberately absent from it: they install
+from pinned commit URLs, and a version constraint cannot apply to a direct URL
+requirement.
+
 **Bump one thing at a time, deliberately, and read the beets changelog when you
 bump beets.**
 
