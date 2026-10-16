@@ -45,6 +45,11 @@ Four commits on top of `v0.5.6`:
   socket_allowed_origins = ["https://betanin.lan"]
   ```
 
+- **The API key only works for `POST /api/torrents`.** That is the one call
+  torrent client hooks make. Every other endpoint (beets config, notifications,
+  directory listing, history, stdin) needs the web UI's JWT, so a leaked key can
+  no longer rewrite the beets config into code execution.
+
 ## The dependency pinning, and why it is the point
 
 Upstream's `requirements-docker.txt` was almost entirely unconstrained:

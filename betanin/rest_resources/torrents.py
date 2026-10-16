@@ -8,6 +8,7 @@ from flask import abort
 from betanin.jobs import import_torrents
 from betanin.models import Torrent
 from betanin.rest.base import SecureResource
+from betanin.rest.base import allow_api_key
 from betanin.extensions import DB
 from betanin.rest_models import request as req_models
 from betanin.rest_models import response as resp_models
@@ -19,6 +20,7 @@ class TorrentsResource(SecureResource):
     @staticmethod
     @TORRENTS_NS.doc(parser=req_models.TORRENT)
     @TORRENTS_NS.response(422, "invalid api key")
+    @allow_api_key
     def post():
         "imports a new torrent"
         args = req_models.TORRENT.parse_args()
