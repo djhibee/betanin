@@ -73,6 +73,10 @@ Four commits on top of `v0.5.6`:
   ```
 
   These are paths *inside* the container, i.e. what the torrent client sends.
+- **No app-wide wildcard CORS.** Upstream also initialised Flask-CORS on the
+  whole app with its default `*`, which overrode `CORS_ORIGIN_WHITELIST`
+  (`betanin/config/flask.py`). Only that whitelist (the dev-server origins)
+  applies now; the UI itself is same-origin and does not need CORS.
 
 ## The dependency pinning, and why it is the point
 
