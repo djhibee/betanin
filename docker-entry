@@ -16,8 +16,25 @@ echo "!! https://github.com/sentriz/betanin"
 echo "!!"
 echo "!! thanks!"
 
-[ "$UID" -eq 0 ] && exec betanin
+if [ "$UID" -eq 0 ]; then
+    echo "!! WARNING: running as root (UID=0). betanin and beets will have full"
+    echo "!! control of the container and every mounted volume. set UID/GID to an"
+    echo "!! unprivileged user (e.g. UID=1000 GID=1000) unless you really need root."
+    exec betanin
+fi
 
-adduser -D -h "$HOME" -u "$UID" -g "$GID" betanin 2>/dev/null
-chown -R betanin:betanin "$HOME"
-exec sudo -u betanin -g betanin betanin
+# reuse the group if the GID already exists in the image, else create it
+group="$(getent group "$GID" | cut -d: -f1)"
+if [ -z "$group" ]; then
+    group=betanin
+    addgroup -g "$GID" "$group"
+fi
+# reuse the user if the UID already exists (e.g. on container restart)
+user="$(getent passwd "$UID" | cut -d: -f1)"
+if [ -z "$user" ]; then
+    user=betanin
+    # busybox: -G sets the primary group (-g is the GECOS field)
+    adduser -D -h "$HOME" -u "$UID" -G "$group" "$user"
+fi
+chown -R "$UID:$GID" "$HOME"
+exec su-exec "$UID:$GID" betanin

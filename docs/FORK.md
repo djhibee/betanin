@@ -77,6 +77,17 @@ Four commits on top of `v0.5.6`:
   whole app with its default `*`, which overrode `CORS_ORIGIN_WHITELIST`
   (`betanin/config/flask.py`). Only that whitelist (the dev-server origins)
   applies now; the UI itself is same-origin and does not need CORS.
+- **Container entrypoint.**
+  - `GID` is now honoured. Upstream passed it to busybox `adduser -g`, which is
+    the GECOS field, so files under `/b` always got an auto-created group.
+    If you set a `GID` different from your `UID`, the startup `chown -R`
+    will change the group of your files under `/b` once, to that `GID`.
+  - `sudo` is replaced by `su-exec` and removed from the image (no setuid
+    binary left). Side effect: the environment is no longer reset, so
+    `BETANIN_HOST` / `BETANIN_PORT` set on the container now take effect.
+  - `UID=0` still works but prints a warning.
+  - `PYTHONWARNINGS="ignore:Unverified HTTPS request"` is gone, so requests
+    made with TLS verification disabled show up in the logs again.
 
 ## The dependency pinning, and why it is the point
 
