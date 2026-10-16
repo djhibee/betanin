@@ -5,7 +5,9 @@ from flask import render_template
 
 # betanin
 import betanin.config.flask as conf_flask
+import betanin.config.betanin as conf_betanin
 import betanin.config.secret_key as conf_secret_key
+from betanin import events  # noqa
 from betanin import blueprints
 from betanin.models import Line  # noqa
 from betanin.models import Torrent  # noqa
@@ -39,7 +41,9 @@ def register_extensions(app):
     DB.init_app(app)
     CORS.init_app(app)
     MIGRATE.init_app(app, DB)
-    SOCKETIO.init_app(app)
+    # None means same-origin only (honours X-Forwarded-Proto/Host)
+    socket_origins = conf_betanin.find_socket_allowed_origins(conf_betanin.read())
+    SOCKETIO.init_app(app, cors_allowed_origins=socket_origins or None)
     JWT.init_app(app)
 
 

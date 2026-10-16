@@ -30,6 +30,21 @@ Four commits on top of `v0.5.6`:
 4. **`build:`** — base images digest-pinned, `soundfile` bundled, dependency
    install moved above the source copy.
 
+## Security hardening
+
+- **Console output is HTML-escaped.** Beets output (which echoes torrent and
+  file names, and MusicBrainz metadata) used to be rendered as raw HTML.
+- **Socket.IO requires a JWT and is same-origin only.** The web UI sends its
+  token when connecting; connections without a valid token are refused, and
+  cross-origin connections are rejected. Behind a reverse proxy that does not
+  forward `X-Forwarded-Proto` / `X-Forwarded-Host`, list the origin(s) the UI is
+  reached from explicitly (this replaces the same-origin check, so list all):
+
+  ```toml
+  [server]
+  socket_allowed_origins = ["https://betanin.lan"]
+  ```
+
 ## The dependency pinning, and why it is the point
 
 Upstream's `requirements-docker.txt` was almost entirely unconstrained:
