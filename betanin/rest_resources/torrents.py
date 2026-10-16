@@ -5,6 +5,7 @@ import os.path
 from flask import abort
 
 # betanin
+import betanin.config.betanin as conf_betanin
 from betanin.jobs import import_torrents
 from betanin.models import Torrent
 from betanin.rest.base import SecureResource
@@ -13,6 +14,33 @@ from betanin.extensions import DB
 from betanin.rest_models import request as req_models
 from betanin.rest_models import response as resp_models
 from betanin.rest.namespaces import TORRENTS_NS
+
+
+def _is_within(path, root):
+    root = os.path.realpath(root)
+    return os.path.commonpath([path, root]) == root
+
+
+def _validate_import(path, name):
+    "returns an error message if `path` / `name` is not acceptable, else None"
+    if not path or path.startswith("-"):
+        return "`path` must not be empty or start with `-`"
+    if not name or name in (".", "..") or "/" in name or "\0" in name:
+        return "`name` must be a single file or directory name"
+    roots = conf_betanin.find_import_roots(conf_betanin.read())
+    if roots:
+        full_path = os.path.realpath(os.path.join(path, name))
+        if not any(_is_within(full_path, root) for root in roots):
+            return "path is outside of the configured `import_roots`"
+    return None
+
+
+def _add_import(path, name):
+    error = _validate_import(path, name)
+    if error:
+        return abort(400, error)
+    import_torrents.add(name=name, path=path)
+    return None
 
 
 @TORRENTS_NS.route("/")
@@ -25,8 +53,7 @@ class TorrentsResource(SecureResource):
         "imports a new torrent"
         args = req_models.TORRENT.parse_args()
         if args.get("name") and args.get("path"):
-            import_torrents.add(name=args["name"], path=args["path"])
-            return None
+            return _add_import(args["path"], args["name"])
         both = args.get("both")
         if not both:
             return abort(
@@ -34,8 +61,7 @@ class TorrentsResource(SecureResource):
             )
         path, name = os.path.split(both)
         if path and name:
-            import_torrents.add(name=name, path=path)
-            return None
+            return _add_import(path, name)
         return abort(400, "please provide a valid path")
 
     @staticmethod

@@ -94,3 +94,7 @@ def find_beet_quiet(conf):
 
 def find_socket_allowed_origins(conf):
     return conf.get("server", {}).get("socket_allowed_origins", [])
+
+
+def find_import_roots(conf):
+    return conf.get("server", {}).get("import_roots", [])

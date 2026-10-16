@@ -70,7 +70,8 @@ def _import_torrent(torrent):
     argv = [BEET_NAME, "import"]
     if conf_betanin.find_beet_quiet(conf_betanin.read()):
         argv.append("-q")
-    argv += ["--noresume", _calculate_import_path(torrent)]
+    # `--` so a path starting with `-` can't be read as an option
+    argv += ["--noresume", "--", _calculate_import_path(torrent)]
 
     proc = PtyProcessUnicode.spawn(argv)
     PROCESSES[torrent.id] = proc
