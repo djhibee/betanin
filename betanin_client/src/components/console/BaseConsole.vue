@@ -9,7 +9,7 @@ import store from '@/store/main'
 import { mapGetters } from 'vuex'
 // help
 import Convert from 'ansi-to-html'
-const converter = new Convert()
+const converter = new Convert({ escapeXML: true })
 // export
 export default {
   props: ['torrentID', 'isLive'],
