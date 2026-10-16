@@ -33,6 +33,5 @@ SOCKETIO = SocketIO(
     # engineio_logger=True,
     # logger=True,
     async_mode="gevent",
-    cors_allowed_origins="*",
 )
 JWT = JWTManager()

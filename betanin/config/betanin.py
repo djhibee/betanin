@@ -65,3 +65,7 @@ def find_num_parallel_jobs(conf):
 
 def find_beet_quiet(conf):
     return conf.get("server", {}).get("beet_quiet", False)
+
+
+def find_socket_allowed_origins(conf):
+    return conf.get("server", {}).get("socket_allowed_origins", [])
