@@ -53,6 +53,7 @@ dev = [
 [project.scripts]
 betanin = "betanin.entry.betanin:main"
 betanin-shell = "betanin.entry.shell:main"
+betanin-hash-password = "betanin.entry.hash_password:main"
 
 [tool.isort]
 force_single_line = true

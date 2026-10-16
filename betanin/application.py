@@ -42,7 +42,9 @@ def register_extensions(app):
     CORS.init_app(app)
     MIGRATE.init_app(app, DB)
     # None means same-origin only (honours X-Forwarded-Proto/Host)
-    socket_origins = conf_betanin.find_socket_allowed_origins(conf_betanin.read())
+    socket_origins = conf_betanin.find_socket_allowed_origins(
+        conf_betanin.read()
+    )
     SOCKETIO.init_app(app, cors_allowed_origins=socket_origins or None)
     JWT.init_app(app)
 
