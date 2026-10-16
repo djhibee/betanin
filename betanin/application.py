@@ -39,7 +39,6 @@ def register_extensions(app):
     sqlalchemy_utils.force_instant_defaults()
     sqlalchemy_utils.force_auto_coercion()
     DB.init_app(app)
-    CORS.init_app(app)
     MIGRATE.init_app(app, DB)
     # None means same-origin only (honours X-Forwarded-Proto/Host)
     socket_origins = conf_betanin.find_socket_allowed_origins(
