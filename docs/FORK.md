@@ -60,6 +60,19 @@ Four commits on top of `v0.5.6`:
   ```
 
   Paste the output (`scrypt:...`) as the password value. Plain text still works.
+- **Import paths are validated.** `beet import` gets `--` before the path, so
+  a path can't be read as a beets option. `POST /api/torrents` rejects (`400`)
+  a `name` that is empty, `.`, `..` or contains `/` (it is always a single
+  torrent file/folder name), and a `path` that is empty or starts with `-`.
+  Optionally, restrict imports to given directories (symlinks are resolved, so
+  a link pointing outside a root is rejected; unset means no restriction):
+
+  ```toml
+  [server]
+  import_roots = ["/downloads"]
+  ```
+
+  These are paths *inside* the container, i.e. what the torrent client sends.
 
 ## The dependency pinning, and why it is the point
 
