@@ -49,6 +49,17 @@ Four commits on top of `v0.5.6`:
   torrent client hooks make. Every other endpoint (beets config, notifications,
   directory listing, history, stdin) needs the web UI's JWT, so a leaked key can
   no longer rewrite the beets config into code execution.
+- **Login hardening.** Username, password and API key are compared in constant
+  time. After 5 failed logins from one IP, that IP gets `429` for 5 minutes
+  (in memory, reset on restart; behind a reverse proxy every client shares the
+  proxy's IP, so rate-limit there too). The `[frontend] password` in
+  `config.toml` may now be a hash instead of plain text:
+
+  ```sh
+  docker exec -it betanin betanin-hash-password   # prompts for the password
+  ```
+
+  Paste the output (`scrypt:...`) as the password value. Plain text still works.
 
 ## The dependency pinning, and why it is the point
 

@@ -11,7 +11,7 @@ export default {
       socket.connect()
       router.replace(router.currentRoute.query.redirect || '/')
     } catch (error) {
-      if (error.response !== undefined && error.response.status === 422) {
+      if (error.response !== undefined && [422, 429].includes(error.response.status)) {
         return error.response.data.message
       } else {
         return 'unexpected error while fetching a token from the backend'
