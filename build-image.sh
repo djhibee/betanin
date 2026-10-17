@@ -16,7 +16,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 IMAGE=mochi/betanin
-TAG=0.5.6-mochi
+TAG=0.6.1-mochi
 
 if [[ -n "$(git status --porcelain)" ]]; then
     echo "Working tree is dirty. Commit first so the image matches a commit." >&2
@@ -47,7 +47,7 @@ if ! docker inspect betanin >/dev/null 2>&1; then
 fi
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-SITE=/usr/lib/python3.11/site-packages
+SITE=/usr/lib/python3.14/site-packages
 
 docker cp "betanin:$SITE" "$TMP/running" >/dev/null 2>&1
 cid=$(docker create "$IMAGE:$TAG")

@@ -47,7 +47,7 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/sentriz/betanin"
+"Homepage" = "https://github.com/djhibee/betanin"
 "Bug Tracker" = "https://github.com/sentriz/betanin/issues"
 
 [project.scripts]
@@ -90,7 +90,7 @@ disable = """\
 [tool.pyright]
 include = ["betanin"]
 venv = "betanin"
-pythonVersion = "3.9"
+pythonVersion = "3.14"
 pythonPlatform = "Linux"
 exclude = ["**/betanin_migrations", "setup.py"]
 
