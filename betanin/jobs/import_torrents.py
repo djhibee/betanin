@@ -1,9 +1,12 @@
 # standard library
+import os
 import shutil
 import os.path
 
 # 3rd party
 import gevent
+import gevent.lock
+import gevent.monkey
 from loguru import logger
 from ptyprocess import PtyProcessUnicode
 from gevent.queue import Queue
@@ -19,6 +22,13 @@ import betanin.config.betanin as conf_betanin
 
 
 BEET_NAME = "beet"
+
+# gevent's monkey-patched os.close makes PtyProcessUnicode.spawn() hang (seen
+# with gevent 26.9 on python 3.14, not with 23.9 on 3.12). The real os.close is
+# restored for the duration of the spawn, under a lock for parallel imports.
+# Same fix as upstream 0.6.x, see pexpect/ptyprocess#48.
+_REAL_CLOSE = gevent.monkey.get_original("os", "close")
+_SPAWN_LOCK = gevent.lock.BoundedSemaphore()
 
 PROCESSES = {}
 QUEUE = Queue()
@@ -73,7 +83,13 @@ def _import_torrent(torrent):
     # `--` so a path starting with `-` can't be read as an option
     argv += ["--noresume", "--", _calculate_import_path(torrent)]
 
-    proc = PtyProcessUnicode.spawn(argv)
+    with _SPAWN_LOCK:
+        patched_close = os.close
+        os.close = _REAL_CLOSE
+        try:
+            proc = PtyProcessUnicode.spawn(argv)
+        finally:
+            os.close = patched_close
     PROCESSES[torrent.id] = proc
     _read_and_send_pty_out(proc, torrent)
     exit_status = _right_exit_status(proc.exitstatus)

@@ -3,8 +3,8 @@
 # today. See docs/FORK.md.
 #
 # Note this pins the OS layer going forward, not backwards: the apk packages
-# here are alpine 3.22 as of the pin date (moved off 3.18, which is EOL; 3.22
-# keeps python 3.12 and chromaprint 1.5.1). What is reproduced exactly is the
+# here are alpine 3.24 (python 3.14) as of the pin date; the base moved
+# 3.18 (EOL) -> 3.22 -> 3.24. What is reproduced exactly is the
 # Python dependency tree, which is where beets and all of our match tuning
 # live. See requirements-docker.txt.
 
@@ -17,7 +17,7 @@ RUN npm install && \
     NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
-FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 AS builder-mp3val
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS builder-mp3val
 WORKDIR /tmp
 COPY alpine/mp3val/APKBUILD .
 RUN apk update && \
@@ -27,7 +27,7 @@ RUN apk update && \
     REPODEST=/tmp/out abuild -F -r
 
 
-FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 LABEL org.opencontainers.image.source=https://github.com/aglowinthefield/betanin
 WORKDIR /src
 
@@ -49,23 +49,33 @@ COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 # image is installed from pip or depends on apk's python packages, so pip is
 # allowed to install into the system site-packages.
 #
-# gcc 14 (alpine >= 3.21) made incompatible-pointer-types an error. aubio 0.4.9's
+# gcc >= 14 (alpine >= 3.21) made incompatible-pointer-types an error. aubio 0.4.9's
 # C extension trips it (a const qualifier on numpy ufunc signatures); the CFLAGS
-# below restore gcc 13's warning so the pinned aubio still builds unchanged.
+# below restore the old warning so the pinned aubio still builds unchanged.
+#
+# numpy 1.26.2 has no python 3.14 wheel, so it is compiled here against
+# alpine's openblas, which therefore has to stay installed at runtime.
+#
+# patches/ holds the source fixes the pinned beets needs to run on
+# python 3.14. Each is applied to the installed package with --forward, so the
+# build fails loudly if one stops applying. See docs/FORK.md.
 COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
+COPY patches/ patches/
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
-        zlib-dev cargo openblas openblas-dev libsndfile-dev && \
+        zlib-dev cargo openblas-dev libsndfile-dev && \
     apk add --no-cache --upgrade su-exec python3 py-pip libev chromaprint ffmpeg \
-        gstreamer flac keyfinder-cli libsndfile mp3gain && \
+        gstreamer flac keyfinder-cli libsndfile mp3gain openblas && \
     apk add --no-cache --allow-untrusted /pkgs/* && \
     env CFLAGS="-Wno-error=incompatible-pointer-types" pip install --no-cache-dir . \
         --requirement requirements-docker.txt --constraint constraints.txt && \
     pip install --no-cache-dir soundfile --constraint constraints.txt && \
+    site="$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" && \
+    for p in patches/*.patch; do patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; done && \
     apk del --purge build-dependencies && \
-    rm -rf /pkgs ~/.cache betanin
+    rm -rf /pkgs ~/.cache betanin patches
 
 # Only now the source, and a metadata-only reinstall over the stub.
 COPY . .
