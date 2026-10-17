@@ -98,7 +98,18 @@ Four commits on top of `v0.5.6`:
   `save`, all unchanged). beets, its plugins, and everything on the matching
   path (jellyfish, mediafile, confuse, numpy, musicbrainzngs, ...) are
   untouched. The frontend build stage moved from node 16 (EOL) to node 22.
-  The runtime base is still alpine 3.18 (EOL); moving it is a separate step.
+- **Base image: alpine 3.18 (EOL) -> alpine 3.22** (pinned by digest).
+  3.22 is supported and keeps Python 3.12 and chromaprint 1.5.1; 3.24 would
+  jump to Python 3.14. Python moves 3.11 -> 3.12, which brings PEP 668, hence
+  `PIP_BREAK_SYSTEM_PACKAGES=1` (pip still only installs the pinned set into
+  the image's system Python). `mp3gain` now comes from Alpine's own package,
+  so the `alpine/mp3gain` build stage is gone; `mp3val` is still not packaged
+  and is still built from source. `llvm14-dev` no longer exists and was only
+  there for numba/librosa, which are not installed. GCC 14 turns
+  `incompatible-pointer-types` into an error, which breaks aubio 0.4.9's C
+  extension; it is built with `-Wno-error=incompatible-pointer-types` rather
+  than changing its version. Verified in a container: a real `beet import`
+  under gevent spawns, runs and finishes (no PtyProcess spawn hang on 3.12).
 
 ## The dependency pinning, and why it is the point
 
@@ -195,7 +206,8 @@ AssertionError: Thread.__init__() not called
 ```
 
 It is harmless, it is not our code, and it is not a regression in betanin. It
-is a consequence of the base image's Python moving 3.11.6 -> 3.11.12.
+first appeared when the base image's Python moved 3.11.6 -> 3.11.12, and it is
+still present on the alpine 3.22 base (Python 3.12).
 
 CPython added exactly one block to `threading._after_fork` between those
 versions:
@@ -218,11 +230,9 @@ It fires in the forked child between `fork()` and `execv()` inside
 execs `beet` immediately, so nothing depends on the lock that failed to be set.
 Imports complete normally with correct MusicBrainz matches and exit status 0.
 
-If the noise ever becomes worth removing, the options are: pin the base to an
-Alpine point release still shipping 3.11.6 (restores exact parity, at the cost
-of an older base receiving fewer security fixes), or bump gevent, which is not
-in beets' matching path and is therefore a low-risk pin to relax. Neither is
-worth doing for cosmetics alone.
+If the noise ever becomes worth removing, the option is to bump gevent, which
+is not in beets' matching path and is therefore a low-risk pin to relax. It is
+not worth doing for cosmetics alone.
 
 This is also the concrete example of what the Dockerfile comment means when it
 says the OS layer reproduces forward but not backward.
@@ -236,7 +246,7 @@ Not done, and not a routine bump. The known work:
   restores the real `os.close` during `PtyProcessUnicode.spawn()`, because
   gevent's monkey-patched version makes spawn hang. Insert `-q` *inside* that
   block; do not replace the function.
-- 0.6.x is alpine 3.23 / python 3.12, so any remaining `python3.11` paths move.
+- 0.6.x is alpine 3.23; this fork is already on python 3.12 (alpine 3.22).
 - Upstream dropped `py-pip` for `uv`.
 - **beets 2.x config migration, which is the dangerous part:**
   - `match.distance_weights.source` is renamed to `data_source`. A config

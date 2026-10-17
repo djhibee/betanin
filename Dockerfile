@@ -3,8 +3,8 @@
 # today. See docs/FORK.md.
 #
 # Note this pins the OS layer going forward, not backwards: the apk packages
-# here are alpine 3.18 as of the pin date, which is newer than those in the
-# image originally built in March 2026. What is reproduced exactly is the
+# here are alpine 3.22 as of the pin date (moved off 3.18, which is EOL; 3.22
+# keeps python 3.12 and chromaprint 1.5.1). What is reproduced exactly is the
 # Python dependency tree, which is where beets and all of our match tuning
 # live. See requirements-docker.txt.
 
@@ -17,17 +17,7 @@ RUN npm install && \
     NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f AS builder-mp3gain
-WORKDIR /tmp
-COPY alpine/mp3gain/APKBUILD .
-RUN apk update && \
-    apk add --no-cache abuild && \
-    abuild-keygen -a -n && \
-    cp /root/.abuild/*.pub /etc/apk/keys/ && \
-    REPODEST=/tmp/out abuild -F -r
-
-
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f AS builder-mp3val
+FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 AS builder-mp3val
 WORKDIR /tmp
 COPY alpine/mp3val/APKBUILD .
 RUN apk update && \
@@ -37,11 +27,10 @@ RUN apk update && \
     REPODEST=/tmp/out abuild -F -r
 
 
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f
-LABEL org.opencontainers.image.source https://github.com/aglowinthefield/betanin
+FROM alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+LABEL org.opencontainers.image.source=https://github.com/aglowinthefield/betanin
 WORKDIR /src
 
-COPY --from=builder-mp3gain /tmp/out/*/*.apk /pkgs/
 COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 
 # Dependencies are installed BEFORE the source is copied, so that editing any
@@ -55,15 +44,24 @@ COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 # The stub package is what makes the split possible -- `pip install .` needs a
 # package to exist before it will resolve the dependencies in pyproject.toml.
 # It is overwritten by the real install further down.
+#
+# alpine's python is marked externally-managed (PEP 668). Nothing else in the
+# image is installed from pip or depends on apk's python packages, so pip is
+# allowed to install into the system site-packages.
+#
+# gcc 14 (alpine >= 3.21) made incompatible-pointer-types an error. aubio 0.4.9's
+# C extension trips it (a const qualifier on numpy ufunc signatures); the CFLAGS
+# below restore gcc 13's warning so the pinned aubio still builds unchanged.
 COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
-        zlib-dev cargo llvm14-dev openblas openblas-dev libsndfile-dev && \
+        zlib-dev cargo openblas openblas-dev libsndfile-dev && \
     apk add --no-cache --upgrade su-exec python3 py-pip libev chromaprint ffmpeg \
-        gstreamer flac keyfinder-cli libsndfile && \
+        gstreamer flac keyfinder-cli libsndfile mp3gain && \
     apk add --no-cache --allow-untrusted /pkgs/* && \
-    env LLVM_CONFIG="$(which llvm14-config)" pip install --no-cache-dir . \
+    env CFLAGS="-Wno-error=incompatible-pointer-types" pip install --no-cache-dir . \
         --requirement requirements-docker.txt --constraint constraints.txt && \
     pip install --no-cache-dir soundfile --constraint constraints.txt && \
     apk del --purge build-dependencies && \
