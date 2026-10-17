@@ -109,6 +109,71 @@ betanin:
     - ${MEDIA}/downloads:/downloads/
 ```
 
+###### hardening
+
+betanin is meant for a trusted local network. a few cheap settings reduce what
+is exposed, see the hardened compose below
+
+- **publish the port on one address only.** `9393:9393` listens on every
+  interface of the host (`0.0.0.0` and `[::]`), including VPNs and IPv6, and
+  docker's rules bypass ufw/firewalld. use `127.0.0.1:9393:9393` if only a
+  reverse proxy on the same host talks to betanin, or the host's LAN address
+  (e.g. `192.168.1.10:9393:9393`, give the host a fixed IP) for direct LAN
+  access. check with `docker port betanin`. also make sure your router does not
+  forward (or UPnP-open) the port
+- **put an HTTPS reverse proxy in front** if anyone else on the network uses it.
+  betanin speaks plain HTTP, so the password, the session token and the API key
+  otherwise cross the network in clear text. the proxy must forward
+  `X-Forwarded-Proto` and `X-Forwarded-Host` (websocket connections are
+  same-origin only), or list the URL the UI is reached from in `config.toml`:
+  `[server] socket_allowed_origins = ["https://betanin.lan"]`. the login rate
+  limit is per client IP, which is the proxy's IP behind a proxy, so rate-limit
+  there too
+- **drop capabilities.** the entrypoint only needs root to create the user,
+  `chown` the volumes and switch user, so `cap_drop: [ALL]` with `CHOWN`,
+  `SETUID` and `SETGID` is enough, and `no-new-privileges` stops anything in the
+  container from gaining privileges through setuid binaries. betanin itself runs
+  as `UID`/`GID` with no capabilities at all. two notes:
+  - with this set the log shows a harmless `adduser: /b: Operation not
+    permitted` (add `FOWNER` to silence it)
+  - if files in the volumes belong to another user and are not readable by
+    root (e.g. mode `700`), the `chown` fails and betanin cannot write them:
+    `chown` them once on the host, or add `DAC_OVERRIDE`
+- **store the password hashed.** `[frontend] password` in `config.toml` can be a
+  hash instead of plain text:
+  `docker exec -it betanin betanin-hash-password` (prompts for the password),
+  then paste the `scrypt:...` output as the password value
+- **set `UID`/`GID`** to an unprivileged user. with `UID=0` betanin and beets run
+  as root
+- optionally, restrict imports to your downloads directory with
+  `[server] import_roots = ["/downloads"]` in `config.toml`
+
+```yml
+betanin:
+  image: sentriz/betanin
+  container_name: betanin
+  ports:
+    - 127.0.0.1:9393:9393 # or <host LAN IP>:9393:9393
+  restart: unless-stopped
+  environment:
+    - UID=1000
+    - GID=1000
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETUID
+    - SETGID
+  security_opt:
+    - no-new-privileges:true
+  volumes:
+    - ${DATA}/betanin/data:/b/.local/share/betanin/
+    - ${DATA}/betanin/config:/b/.config/betanin/
+    - ${DATA}/betanin/beets:/b/.config/beets/
+    - ${MEDIA}/music:/music/
+    - ${MEDIA}/downloads:/downloads/
+```
+
 <hr>
 
 ### transmission
