@@ -37,4 +37,5 @@ if [ -z "$user" ]; then
     adduser -D -h "$HOME" -u "$UID" -G "$group" "$user"
 fi
 chown -R "$UID:$GID" "$HOME"
-exec su-exec "$UID:$GID" betanin
+# su-exec resets HOME from /etc/passwd; keep ours, betanin's paths derive from it
+exec su-exec "$UID:$GID" env HOME="$HOME" betanin
