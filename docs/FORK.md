@@ -88,6 +88,17 @@ Four commits on top of `v0.5.6`:
   - `UID=0` still works but prints a warning.
   - `PYTHONWARNINGS="ignore:Unverified HTTPS request"` is gone, so requests
     made with TLS verification disabled show up in the logs again.
+- **Security bumps of non-matching dependencies.** Packages with published
+  advisories that play no part in how beets matches were moved off the
+  production snapshot: werkzeug 3.1.9, jinja2 3.1.6, flask-cors 6.0.5,
+  flask-socketio 5.7.0, python-socketio 5.17.0, python-engineio 4.14.0,
+  simple-websocket 1.1.0, pyjwt 2.15.1, requests 2.34.2, urllib3 2.8.0,
+  certifi 2026.7.22, idna 3.20, h11 0.16.0, httpcore 1.0.9, pillow 12.3.0
+  (the pinned beets only uses `Image.open` / `thumbnail(..., LANCZOS)` /
+  `save`, all unchanged). beets, its plugins, and everything on the matching
+  path (jellyfish, mediafile, confuse, numpy, musicbrainzngs, ...) are
+  untouched. The frontend build stage moved from node 16 (EOL) to node 22.
+  The runtime base is still alpine 3.18 (EOL); moving it is a separate step.
 
 ## The dependency pinning, and why it is the point
 

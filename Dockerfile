@@ -8,11 +8,13 @@
 # Python dependency tree, which is where beets and all of our match tuning
 # live. See requirements-docker.txt.
 
-FROM node:16-alpine3.17@sha256:bbc110afcd56dea9d27969ce1c3585aac53192ad14b364b6c5cb1f25a144ad9f AS builder-frontend
+# node 22 (v22.23.3, alpine 3.24). The frontend is built with webpack 4, which
+# needs the legacy OpenSSL provider on node >= 17.
+FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder-frontend
 WORKDIR /src
 COPY betanin_client/ .
 RUN npm install && \
-    PRODUCTION=true npm run-script build
+    NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
 FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f AS builder-mp3gain
