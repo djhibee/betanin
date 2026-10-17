@@ -1,0 +1,27 @@
+beets: let term_width() run on python >= 3.14
+
+TIOCGWINSZ fills a struct winsize (8 bytes). The pinned beets snapshot passes
+a 4-byte buffer; python < 3.14 silently truncated the result to 4 bytes (rows,
+cols), python 3.14 raises SystemError: buffer overflow, which kills `beet` at
+import time whenever stdin is a tty (always, under betanin's pty).
+
+Pass 8 bytes and keep reading the first 4: same result as before on every
+python. Applied to the installed package by the Dockerfile; drop it when beets
+is bumped past the fix.
+
+--- a/beets/ui/__init__.py
++++ b/beets/ui/__init__.py
+@@ -793,11 +793,11 @@
+         return fallback
+ 
+     try:
+-        buf = fcntl.ioctl(0, termios.TIOCGWINSZ, " " * 4)
++        buf = fcntl.ioctl(0, termios.TIOCGWINSZ, " " * 8)
+     except OSError:
+         return fallback
+     try:
+-        height, width = struct.unpack("hh", buf)
++        height, width = struct.unpack("hh", buf[:4])
+     except struct.error:
+         return fallback
+     return width

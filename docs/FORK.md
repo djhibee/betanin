@@ -110,6 +110,42 @@ Four commits on top of `v0.5.6`:
   extension; it is built with `-Wno-error=incompatible-pointer-types` rather
   than changing its version. Verified in a container: a real `beet import`
   under gevent spawns, runs and finishes (no PtyProcess spawn hang on 3.12).
+- **Base image: alpine 3.22 -> alpine 3.24, Python 3.12 -> 3.14.** This one is
+  not free; 3.14 needed changes in three places:
+  - *Dependencies that do not build or import on 3.14*, bumped to the first
+    working release, all outside beets' matching code: gevent 23.9.1 -> 26.9.0,
+    greenlet 3.0.3 -> 3.5.6, zope-interface 6.1 -> 8.7 (C extensions or
+    class-body attributes new in 3.13), sqlalchemy 2.0.23 -> 2.0.55 and
+    typing-extensions 4.9.0 -> 4.16.0 (typing internals), rpds-py 0.15.2 ->
+    0.30.0 (segfaults on import). confuse 2.0.1 -> 2.1.0, beets' config parser,
+    because 2.0.1 calls `pkgutil.get_loader`, removed in 3.14; the rest of that
+    diff is typing and py2 clean-up.
+  - *Stdlib modules removed in 3.13* (`imghdr`, `aifc`, `sunau`, `audioop`),
+    still imported by the pinned mediafile 0.12.0 and audioread 3.0.1. They are
+    installed from their verbatim backports (`standard-imghdr`,
+    `standard-aifc`, `standard-sunau`, `standard-chunk`, `audioop-lts`), so
+    mediafile and audioread stay at their pinned versions.
+  - *Two real code fixes.* gevent 26's monkey-patched `os.close` makes
+    `PtyProcessUnicode.spawn()` hang and freeze the whole server (the hang
+    upstream 0.6.x works around); `betanin/jobs/import_torrents.py` now
+    restores the real `os.close` during the spawn, the same way. And the beets
+    snapshot crashes at start-up on 3.14 (`term_width()` passes a 4-byte buffer
+    to `TIOCGWINSZ`, which 3.14 rejects with `SystemError: buffer overflow`);
+    `patches/beets-term-width-py314.patch` fixes that one line and is applied to
+    the installed package by the Dockerfile. It is the only file of the pinned
+    beets that is not byte-identical to `296f01b`, and it only affects terminal
+    width.
+
+  numpy 1.26.2 has no 3.14 wheel and is now compiled in the image against
+  Alpine's openblas, which stays installed at runtime. Alpine 3.24 also brings
+  chromaprint 1.6.0 (`fpcalc`, used by the `chroma` plugin) instead of 1.5.1.
+
+  Matching was checked directly: string distances (accents, `The`, `&`/`and`,
+  CJK, full-width, ligatures...), track distances, a full album distance with
+  its penalties, and the whole resolved default beets config were computed on
+  the old stack (alpine 3.22, Python 3.12, previous pins) and the new one: all
+  identical. A real import in the image works end to end, including the
+  bpmanalyser plugin (aubio + numpy), and the server stays responsive during it.
 
 ## The dependency pinning, and why it is the point
 
@@ -147,7 +183,8 @@ Two of the pins are commits rather than versions, and have to be:
 
 Both commits were identified by extracting the running container's
 `site-packages` and matching every installed file against upstream git trees by
-blob hash. For beets that is 107 of 107 files byte-identical.
+blob hash. For beets that is 107 of 107 files byte-identical (since the
+python 3.14 move, one of them is patched after install, see above).
 
 ### Two files, not one
 
@@ -195,9 +232,10 @@ nothing. Still true in upstream 0.6.3.
 Fixing it is a real change in behaviour — a lot of currently-green history would
 have been red — so it is deliberately not bundled in with the fork itself.
 
-## Known cosmetic issue: an ignored traceback at every import
+## Fixed cosmetic issue: an ignored traceback at every import
 
-Every import console now opens with:
+Gone since the alpine 3.24 move; kept for the record. Every
+import console used to open with:
 
 ```
 Exception ignored in: <function _after_fork at 0x...>
@@ -206,7 +244,7 @@ AssertionError: Thread.__init__() not called
 ```
 
 It is harmless, it is not our code, and it is not a regression in betanin. It
-first appeared when the base image's Python moved 3.11.6 -> 3.11.12, and it is
+first appeared when the base image's Python moved 3.11.6 -> 3.11.12, and was
 still present on the alpine 3.22 base (Python 3.12).
 
 CPython added exactly one block to `threading._after_fork` between those
@@ -230,9 +268,7 @@ It fires in the forked child between `fork()` and `execv()` inside
 execs `beet` immediately, so nothing depends on the lock that failed to be set.
 Imports complete normally with correct MusicBrainz matches and exit status 0.
 
-If the noise ever becomes worth removing, the option is to bump gevent, which
-is not in beets' matching path and is therefore a low-risk pin to relax. It is
-not worth doing for cosmetics alone.
+It no longer appears on the alpine 3.24 image (gevent 26.9, Python 3.14).
 
 This is also the concrete example of what the Dockerfile comment means when it
 says the OS layer reproduces forward but not backward.
@@ -244,9 +280,11 @@ Not done, and not a routine bump. The known work:
 - Drop commit 2; upstream's `b3f652be` supersedes it.
 - Commit 3 needs re-deriving: 0.6.x wraps the spawn in a `BoundedSemaphore` that
   restores the real `os.close` during `PtyProcessUnicode.spawn()`, because
-  gevent's monkey-patched version makes spawn hang. Insert `-q` *inside* that
-  block; do not replace the function.
-- 0.6.x is alpine 3.23; this fork is already on python 3.12 (alpine 3.22).
+  gevent's monkey-patched version makes spawn hang. This fork now does the same
+  (see the python 3.14 move above), with `-q` and `--` added before the spawn.
+- 0.6.x is alpine 3.23 / python 3.12; this fork is already on alpine 3.24 /
+  python 3.14. `patches/beets-term-width-py314.patch` must go once beets is
+  bumped past the fix.
 - Upstream dropped `py-pip` for `uv`.
 - **beets 2.x config migration, which is the dangerous part:**
   - `match.distance_weights.source` is renamed to `data_source`. A config

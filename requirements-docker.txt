@@ -37,3 +37,10 @@ pillow==12.3.0
 unidecode==1.3.7
 jsonpath-rw==1.4.0
 pyyaml==6.0.1
+
+# Stdlib modules removed in python 3.13, still imported by the pinned
+# mediafile 0.12.0 (imghdr) and audioread 3.0.1 (aifc, sunau, audioop).
+# Verbatim backports; they let both stay at their pinned versions.
+standard-imghdr==3.13.0
+standard-aifc==3.13.0
+standard-sunau==3.13.0
