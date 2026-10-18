@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: betanin_client/package-lock.json
       - name: Install dependencies
@@ -32,24 +32,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9.x
-          cache: 'pip'
-          cache-dependency-path: |
-            setup.py
-            setup.cfg
+        uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
       - name: Install dependencies
-        run: pip install --user . .[dev]
-      - name: Check imports
-        run: isort --check-only $(git ls-files "*.py")
-      - name: Check formatting
-        run: black --check $(git ls-files "*.py")
-      - name: Check types
-        if: ${{ false }}
-        run: pyright .
+        run: uv sync --all-extras
+      - name: Lint and check formatting
+        run: uv run ruff check $(git ls-files "*.py") && uv run ruff format --check $(git ls-files "*.py")
 
   release-please:
     name: Run Release Please
@@ -60,9 +49,9 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Release Please
-        uses: google-github-actions/release-please-action@v4 # Mis à jour à la v4
+        uses: google-github-actions/release-please-action@v4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -77,32 +66,25 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:latest
-          platforms: all
+        uses: docker/setup-qemu-action@v4
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          install: true
-          version: latest
-          driver-opts: image=moby/buildkit:master
+        uses: docker/setup-buildx-action@v4
       - name: Login into DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Login into GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }} 
       - name: Build and Push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -123,30 +105,23 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           cache-dependency-path: betanin_client/package-lock.json
       - name: Install frontend dependencies
         run: npm ci
         working-directory: betanin_client
-      - name: Install frontend
-        run: PRODUCTION=true npm run-script build
+      - name: Build frontend
+        run: npm run build
         working-directory: betanin_client
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9.x
-          cache: 'pip'
-          cache-dependency-path: |
-            setup.py
-            setup.cfg
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
       - name: Push to PyPA
         run: |
           set -e
-          pip install --no-cache --upgrade build twine
-          python -m build
-          python -m twine upload --username "__token__" --password "${{ secrets.PYPI_TOKEN }}" --disable-progress-bar dist/*
+          uv tool run --from build pyproject-build
+          uv tool run twine upload --username "__token__" --password "${{ secrets.PYPI_TOKEN }}" --disable-progress-bar dist/*
