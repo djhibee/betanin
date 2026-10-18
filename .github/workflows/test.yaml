@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20 # Mis à jour vers une version LTS récente
+          node-version: 22
           cache: 'npm' # Active le cache npm automatique
           cache-dependency-path: betanin_client/package-lock.json
 
@@ -37,26 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9.x
-          cache: 'pip' # Active le cache pip automatique
-          cache-dependency-path: |
-            setup.py
-            setup.cfg
+      - name: install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: pip install --user . .[dev]
-
-      - name: Check imports
-        run: isort --check-only $(git ls-files "*.py")
-
-      - name: Check formatting
-        run: black --check $(git ls-files "*.py")
-
-      - name: Check types
-        if: ${{ false }} # Toujours pas d'énergie pour ça aujourd'hui !
-        run: pyright .
+        run: uv sync --all-extras
+      - name: Lint and check formatting
+        run: uv run ruff check $(git ls-files "*.py") && uv run ruff format --check $(git ls-files "*.py")
