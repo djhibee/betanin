@@ -10,7 +10,7 @@ jobs:
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - id: check
         run: |
           test -n "$(git rev-list --after="24 hours" ${{ github.sha }})" \
@@ -23,13 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: betanin_client/package-lock.json
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         working-directory: betanin_client
       - name: Lint
         run: npm run lint
@@ -44,11 +46,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9.x
+          cache: 'pip'
+          cache-dependency-path: |
+            setup.py
+            setup.cfg
       - name: Install dependencies
         run: pip install --user . .[dev]
       - name: Check imports
@@ -56,7 +62,7 @@ jobs:
       - name: Check formatting
         run: black --check $(git ls-files "*.py")
       - name: Check types
-        if: ${{ false }} # do not have the energy for python right now
+        if: ${{ false }}
         run: pyright .
   build-release:
     name: Build and release Docker image
@@ -65,15 +71,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
         with:
           image: tonistiigi/binfmt:latest
           platforms: all
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
         with:
           install: true
           version: latest
@@ -87,7 +93,7 @@ jobs:
           _short_hash=${{ github.sha }}
           echo "SHORT_HASH=${_short_hash:0:7}" >> $GITHUB_ENV
       - name: Build and Push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -98,3 +104,5 @@ jobs:
             ghcr.io/${{ github.repository }}:nightly
             ${{ github.repository }}:${{ env.SHORT_HASH }}
             ${{ github.repository }}:nightly
+          cache-from: type=gha # <--- Lit le cache Docker depuis GitHub Actions
+          cache-to: type=gha,mode=max # <--- Écrit le cache Docker (mode max pour optimiser toutes les étapes du Dockerfile)
