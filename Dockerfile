@@ -27,21 +27,22 @@ COPY betanin_client/ .
 RUN NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS builder-mp3val
-WORKDIR /tmp
-COPY alpine/mp3val/APKBUILD .
-RUN apk update && \
-    apk add --no-cache abuild && \
-    abuild-keygen -a -n && \
-    cp /root/.abuild/*.pub /etc/apk/keys/ && \
-    REPODEST=/tmp/out abuild -F -r
+# Temporarily disabled to test the remaining build without the SourceForge fetch.
+# FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS builder-mp3val
+# WORKDIR /tmp
+# COPY alpine/mp3val/APKBUILD .
+# RUN apk update && \
+#     apk add --no-cache abuild && \
+#     abuild-keygen -a -n && \
+#     cp /root/.abuild/*.pub /etc/apk/keys/ && \
+#     REPODEST=/tmp/out abuild -F -r
 
 
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 LABEL org.opencontainers.image.source=https://github.com/djhibee/betanin
 WORKDIR /src
 
-COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
+# COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 
 # Dependencies are installed BEFORE the source is copied, so that editing any
 # betanin source file does not invalidate this layer.
@@ -87,7 +88,7 @@ RUN mkdir -p betanin && touch betanin/__init__.py && \
         zlib-dev cargo  openblas-dev libsndfile-dev && \
     apk add --no-cache --upgrade su-exec python3 libev chromaprint ffmpeg \
         gstreamer flac keyfinder-cli libsndfile mp3gain openblas && \
-    apk add --no-cache --allow-untrusted /pkgs/* && \
+    # apk add --no-cache --allow-untrusted /pkgs/* && \
     env CFLAGS="-Wno-error=incompatible-pointer-types" uv pip install --no-cache-dir . \
         --requirement requirements-docker.txt --constraint constraints.txt && \
     uv pip install --no-cache-dir soundfile --constraint constraints.txt && \
