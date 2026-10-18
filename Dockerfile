@@ -104,7 +104,7 @@ RUN mkdir -p betanin && touch betanin/__init__.py && \
 # Only now the source, and a metadata-only reinstall over the stub.
 COPY . .
 COPY --from=builder-frontend /src/dist/ /src/betanin_client/dist/
-RUN pip install --no-cache-dir --no-deps --force-reinstall . && rm -rf ~/.cache
+RUN uv pip install --no-cache-dir --no-deps --force-reinstall . && rm -rf ~/.cache
 
 VOLUME /b/.local/share/betanin/
 VOLUME /b/.config/betanin/
