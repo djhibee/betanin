@@ -83,7 +83,7 @@ COPY patches/ patches/
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
-        zlib-dev cargo llmdev openblas-dev libsndfile-dev && \
+        zlib-dev cargo  openblas-dev libsndfile-dev && \
     apk add --no-cache --upgrade su-exec python3 libev chromaprint ffmpeg \
         gstreamer flac keyfinder-cli libsndfile mp3gain openblas && \
     apk add --no-cache --allow-untrusted /pkgs/* && \
