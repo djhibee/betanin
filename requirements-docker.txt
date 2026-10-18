@@ -7,7 +7,7 @@
 # Bump deliberately, one at a time. See docs/FORK.md.
 
 beets==2.14.1
-beets-artistcountry @ beets-artistcountry @ git+https://github.com/djhibee/beets-artistcountry.git@0.9.1
+beets-artistcountry @ git+https://github.com/djhibee/beets-artistcountry.git@0.9.1
 beets-filetote @ git+https://github.com/djhibee/beets-filetote.git@1.1.0
 beets-mosaic==0.9.3
 beets-oldestdate @ git+https://github.com/djhibee/beets-oldestdate.git@0.9.1
