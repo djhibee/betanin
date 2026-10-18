@@ -1,7 +1,7 @@
 # 3rd party
+from flask_jwt_extended import decode_token
 from flask_restx import marshal
 from flask_socketio import ConnectionRefusedError
-from flask_jwt_extended import decode_token
 
 # betanin
 from betanin.extensions import SOCKETIO
