@@ -49,3 +49,5 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ github.event.inputs.tag }}
             ${{ github.repository }}:${{ github.event.inputs.tag }}
+          cache-from: type=gha # <--- Lit le cache Docker depuis GitHub Actions
+          cache-to: type=gha,mode=max # <--- Écrit le cache Docker (mode complet pour accélérer les futurs builds)
