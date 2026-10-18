@@ -58,7 +58,6 @@ beets-synologysync @ git+https://github.com/djhibee/beets-synologysync@0.6.3
 beets-userrating @ git+https://github.com/djhibee/beets-userrating@v0.9.1
 beets-xtractor==0.4.2
 beets-ydl==0.0.4
-betanin==0.5.6
 bidict==0.22.1
 blinker==1.7.0
 certifi==2026.7.22
