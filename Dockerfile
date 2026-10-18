@@ -93,14 +93,17 @@ RUN mkdir -p betanin && touch betanin/__init__.py && \
     uv pip install --no-cache-dir soundfile --constraint constraints.txt && \
     # PATCH \
     site="$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" && \
-    for p in patches/*.patch; do patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; done && \
+    for p in patches/*.patch; do \
+        [ -f "$p" ] || continue; \
+        patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; \
+    done && \
     apk del --purge build-dependencies && \
     rm -rf /pkgs ~/.cache betanin patches
 
 # Only now the source, and a metadata-only reinstall over the stub.
 COPY . .
 COPY --from=builder-frontend /src/dist/ /src/betanin_client/dist/
-RUN pip install --no-cache-dir --no-deps --force-reinstall . && rm -rf ~/.cache
+RUN uv pip install --no-cache-dir --no-deps --force-reinstall . && rm -rf ~/.cache
 
 VOLUME /b/.local/share/betanin/
 VOLUME /b/.config/betanin/
