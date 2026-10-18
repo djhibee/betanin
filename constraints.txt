@@ -49,13 +49,13 @@ audioop-lts==0.2.2
 audioread==3.1.9
 beautifulsoup4==4.14.3
 beets==2.14.1
-beets-artistcountry @ git+https://github.com/djhibee/beets-artistcountry.git@0.9.1
-beets-filetote @ git+https://github.com/djhibee/beets-filetote.git@1.1.0
+beets-artistcountry @ git+https://github.com/djhibee/beets-artistcountry.git@v0.9.1
+beets-filetote @ git+https://github.com/djhibee/beets-filetote.git@v1.1.0
 beets-mosaic==0.9.3
-beets-oldestdate @ git+https://github.com/djhibee/beets-oldestdate.git@0.9.1
-beets-originquery @ git+https://github.com/djhibee/beets-originquery@0.9.1
+beets-oldestdate @ git+https://github.com/djhibee/beets-oldestdate.git@v0.9.1
+beets-originquery @ git+https://github.com/djhibee/beets-originquery@v0.9.1
 beets-synologysync @ git+https://github.com/djhibee/beets-synologysync@0.6.3
-beets-userrating @ git+https://github.com/djhibee/beets-userrating@0.9.1
+beets-userrating @ git+https://github.com/djhibee/beets-userrating@v0.9.1
 beets-xtractor==0.4.2
 beets-ydl==0.0.4
 betanin==0.5.6
@@ -68,7 +68,7 @@ click==8.1.7
 confuse==2.3.0
 decorator==5.3.1
 discogs==0.2
-fetchart_extra @ git+https://github.com/djhibee/fetchart_extra@0.6.1
+fetchart_extra @ git+https://github.com/djhibee/fetchart_extra@v0.6.1
 flask==2.3.3
 flask-cors==6.0.5
 flask-jwt-extended==4.6.0
