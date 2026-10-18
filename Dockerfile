@@ -94,7 +94,10 @@ RUN mkdir -p betanin && touch betanin/__init__.py && \
     uv pip install --no-cache-dir soundfile --constraint constraints.txt && \
     # PATCH \
     site="$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" && \
-    for p in patches/*.patch; do patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; done && \
+    for p in patches/*.patch; do \
+        [ -f "$p" ] || continue; \
+        patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; \
+    done && \
     apk del --purge build-dependencies && \
     rm -rf /pkgs ~/.cache betanin patches
 
