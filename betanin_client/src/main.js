@@ -6,7 +6,7 @@ Vue.config.productionTip = false
 import App from '@/views/App.vue'
 import router from '@/router'
 import store from '@/store/main'
-import { SOCKET_URL } from '@/constants'
+import socket from '@/socket'
 import './filters'
 
 // buefy
@@ -19,8 +19,7 @@ Vue.use(Buefy, {
 
 // socketio
 import VueSocketio from 'vue-socket.io-extended'
-import IO from 'socket.io-client'
-Vue.use(VueSocketio, IO(SOCKET_URL), {
+Vue.use(VueSocketio, socket.socket, {
   store,
   actionPrefix: 'doSocket__',
   mutationPrefix: 'SOCKET__',
@@ -46,3 +45,4 @@ const view = new Vue({
   render: (h) => h(App),
 })
 view.$mount('#app')
+socket.connect()

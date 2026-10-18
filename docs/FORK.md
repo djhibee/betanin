@@ -30,6 +30,123 @@ Four commits on top of `v0.5.6`:
 4. **`build:`** — base images digest-pinned, `soundfile` bundled, dependency
    install moved above the source copy.
 
+## Security hardening
+
+- **Console output is HTML-escaped.** Beets output (which echoes torrent and
+  file names, and MusicBrainz metadata) used to be rendered as raw HTML.
+- **Socket.IO requires a JWT and is same-origin only.** The web UI sends its
+  token when connecting; connections without a valid token are refused, and
+  cross-origin connections are rejected. Behind a reverse proxy that does not
+  forward `X-Forwarded-Proto` / `X-Forwarded-Host`, list the origin(s) the UI is
+  reached from explicitly (this replaces the same-origin check, so list all):
+
+  ```toml
+  [server]
+  socket_allowed_origins = ["https://betanin.lan"]
+  ```
+
+- **The API key only works for `POST /api/torrents`.** That is the one call
+  torrent client hooks make. Every other endpoint (beets config, notifications,
+  directory listing, history, stdin) needs the web UI's JWT, so a leaked key can
+  no longer rewrite the beets config into code execution.
+- **Login hardening.** Username, password and API key are compared in constant
+  time. After 5 failed logins from one IP, that IP gets `429` for 5 minutes
+  (in memory, reset on restart; behind a reverse proxy every client shares the
+  proxy's IP, so rate-limit there too). The `[frontend] password` in
+  `config.toml` may now be a hash instead of plain text:
+
+  ```sh
+  docker exec -it betanin betanin-hash-password   # prompts for the password
+  ```
+
+  Paste the output (`scrypt:...`) as the password value. Plain text still works.
+- **Import paths are validated.** `beet import` gets `--` before the path, so
+  a path can't be read as a beets option. `POST /api/torrents` rejects (`400`)
+  a `name` that is empty, `.`, `..` or contains `/` (it is always a single
+  torrent file/folder name), and a `path` that is empty or starts with `-`.
+  Optionally, restrict imports to given directories (symlinks are resolved, so
+  a link pointing outside a root is rejected; unset means no restriction):
+
+  ```toml
+  [server]
+  import_roots = ["/downloads"]
+  ```
+
+  These are paths *inside* the container, i.e. what the torrent client sends.
+- **No app-wide wildcard CORS.** Upstream also initialised Flask-CORS on the
+  whole app with its default `*`, which overrode `CORS_ORIGIN_WHITELIST`
+  (`betanin/config/flask.py`). Only that whitelist (the dev-server origins)
+  applies now; the UI itself is same-origin and does not need CORS.
+- **Container entrypoint.**
+  - `GID` is now honoured. Upstream passed it to busybox `adduser -g`, which is
+    the GECOS field, so files under `/b` always got an auto-created group.
+    If you set a `GID` different from your `UID`, the startup `chown -R`
+    will change the group of your files under `/b` once, to that `GID`.
+  - `sudo` is replaced by `su-exec` and removed from the image (no setuid
+    binary left). Side effect: the environment is no longer reset, so
+    `BETANIN_HOST` / `BETANIN_PORT` set on the container now take effect.
+  - `UID=0` still works but prints a warning.
+  - `PYTHONWARNINGS="ignore:Unverified HTTPS request"` is gone, so requests
+    made with TLS verification disabled show up in the logs again.
+- **Security bumps of non-matching dependencies.** Packages with published
+  advisories that play no part in how beets matches were moved off the
+  production snapshot: werkzeug 3.1.9, jinja2 3.1.6, flask-cors 6.0.5,
+  flask-socketio 5.7.0, python-socketio 5.17.0, python-engineio 4.14.0,
+  simple-websocket 1.1.0, pyjwt 2.15.1, requests 2.34.2, urllib3 2.8.0,
+  certifi 2026.7.22, idna 3.20, h11 0.16.0, httpcore 1.0.9, pillow 12.3.0
+  (the pinned beets only uses `Image.open` / `thumbnail(..., LANCZOS)` /
+  `save`, all unchanged). beets, its plugins, and everything on the matching
+  path (jellyfish, mediafile, confuse, numpy, musicbrainzngs, ...) are
+  untouched. The frontend build stage moved from node 16 (EOL) to node 22.
+- **Base image: alpine 3.18 (EOL) -> alpine 3.22** (pinned by digest).
+  3.22 is supported and keeps Python 3.12 and chromaprint 1.5.1; 3.24 would
+  jump to Python 3.14. Python moves 3.11 -> 3.12, which brings PEP 668, hence
+  `PIP_BREAK_SYSTEM_PACKAGES=1` (pip still only installs the pinned set into
+  the image's system Python). `mp3gain` now comes from Alpine's own package,
+  so the `alpine/mp3gain` build stage is gone; `mp3val` is still not packaged
+  and is still built from source. `llvm14-dev` no longer exists and was only
+  there for numba/librosa, which are not installed. GCC 14 turns
+  `incompatible-pointer-types` into an error, which breaks aubio 0.4.9's C
+  extension; it is built with `-Wno-error=incompatible-pointer-types` rather
+  than changing its version. Verified in a container: a real `beet import`
+  under gevent spawns, runs and finishes (no PtyProcess spawn hang on 3.12).
+- **Base image: alpine 3.22 -> alpine 3.24, Python 3.12 -> 3.14.** This one is
+  not free; 3.14 needed changes in three places:
+  - *Dependencies that do not build or import on 3.14*, bumped to the first
+    working release, all outside beets' matching code: gevent 23.9.1 -> 26.9.0,
+    greenlet 3.0.3 -> 3.5.6, zope-interface 6.1 -> 8.7 (C extensions or
+    class-body attributes new in 3.13), sqlalchemy 2.0.23 -> 2.0.55 and
+    typing-extensions 4.9.0 -> 4.16.0 (typing internals), rpds-py 0.15.2 ->
+    0.30.0 (segfaults on import). confuse 2.0.1 -> 2.1.0, beets' config parser,
+    because 2.0.1 calls `pkgutil.get_loader`, removed in 3.14; the rest of that
+    diff is typing and py2 clean-up.
+  - *Stdlib modules removed in 3.13* (`imghdr`, `aifc`, `sunau`, `audioop`),
+    still imported by the pinned mediafile 0.12.0 and audioread 3.0.1. They are
+    installed from their verbatim backports (`standard-imghdr`,
+    `standard-aifc`, `standard-sunau`, `standard-chunk`, `audioop-lts`), so
+    mediafile and audioread stay at their pinned versions.
+  - *Two real code fixes.* gevent 26's monkey-patched `os.close` makes
+    `PtyProcessUnicode.spawn()` hang and freeze the whole server (the hang
+    upstream 0.6.x works around); `betanin/jobs/import_torrents.py` now
+    restores the real `os.close` during the spawn, the same way. And the beets
+    snapshot crashes at start-up on 3.14 (`term_width()` passes a 4-byte buffer
+    to `TIOCGWINSZ`, which 3.14 rejects with `SystemError: buffer overflow`);
+    `patches/beets-term-width-py314.patch` fixes that one line and is applied to
+    the installed package by the Dockerfile. It is the only file of the pinned
+    beets that is not byte-identical to `296f01b`, and it only affects terminal
+    width.
+
+  numpy 1.26.2 has no 3.14 wheel and is now compiled in the image against
+  Alpine's openblas, which stays installed at runtime. Alpine 3.24 also brings
+  chromaprint 1.6.0 (`fpcalc`, used by the `chroma` plugin) instead of 1.5.1.
+
+  Matching was checked directly: string distances (accents, `The`, `&`/`and`,
+  CJK, full-width, ligatures...), track distances, a full album distance with
+  its penalties, and the whole resolved default beets config were computed on
+  the old stack (alpine 3.22, Python 3.12, previous pins) and the new one: all
+  identical. A real import in the image works end to end, including the
+  bpmanalyser plugin (aubio + numpy), and the server stays responsive during it.
+
 ## The dependency pinning, and why it is the point
 
 Upstream's `requirements-docker.txt` was almost entirely unconstrained:
@@ -66,7 +183,8 @@ Two of the pins are commits rather than versions, and have to be:
 
 Both commits were identified by extracting the running container's
 `site-packages` and matching every installed file against upstream git trees by
-blob hash. For beets that is 107 of 107 files byte-identical.
+blob hash. For beets that is 107 of 107 files byte-identical (since the
+python 3.14 move, one of them is patched after install, see above).
 
 ### Two files, not one
 
@@ -114,9 +232,10 @@ nothing. Still true in upstream 0.6.3.
 Fixing it is a real change in behaviour — a lot of currently-green history would
 have been red — so it is deliberately not bundled in with the fork itself.
 
-## Known cosmetic issue: an ignored traceback at every import
+## Fixed cosmetic issue: an ignored traceback at every import
 
-Every import console now opens with:
+Gone since the alpine 3.24 move; kept for the record. Every
+import console used to open with:
 
 ```
 Exception ignored in: <function _after_fork at 0x...>
@@ -125,7 +244,8 @@ AssertionError: Thread.__init__() not called
 ```
 
 It is harmless, it is not our code, and it is not a regression in betanin. It
-is a consequence of the base image's Python moving 3.11.6 -> 3.11.12.
+first appeared when the base image's Python moved 3.11.6 -> 3.11.12, and was
+still present on the alpine 3.22 base (Python 3.12).
 
 CPython added exactly one block to `threading._after_fork` between those
 versions:
@@ -148,11 +268,7 @@ It fires in the forked child between `fork()` and `execv()` inside
 execs `beet` immediately, so nothing depends on the lock that failed to be set.
 Imports complete normally with correct MusicBrainz matches and exit status 0.
 
-If the noise ever becomes worth removing, the options are: pin the base to an
-Alpine point release still shipping 3.11.6 (restores exact parity, at the cost
-of an older base receiving fewer security fixes), or bump gevent, which is not
-in beets' matching path and is therefore a low-risk pin to relax. Neither is
-worth doing for cosmetics alone.
+It no longer appears on the alpine 3.24 image (gevent 26.9, Python 3.14).
 
 This is also the concrete example of what the Dockerfile comment means when it
 says the OS layer reproduces forward but not backward.
@@ -164,9 +280,11 @@ Not done, and not a routine bump. The known work:
 - Drop commit 2; upstream's `b3f652be` supersedes it.
 - Commit 3 needs re-deriving: 0.6.x wraps the spawn in a `BoundedSemaphore` that
   restores the real `os.close` during `PtyProcessUnicode.spawn()`, because
-  gevent's monkey-patched version makes spawn hang. Insert `-q` *inside* that
-  block; do not replace the function.
-- 0.6.x is alpine 3.23 / python 3.12, so any remaining `python3.11` paths move.
+  gevent's monkey-patched version makes spawn hang. This fork now does the same
+  (see the python 3.14 move above), with `-q` and `--` added before the spawn.
+- 0.6.x is alpine 3.23 / python 3.12; this fork is already on alpine 3.24 /
+  python 3.14. `patches/beets-term-width-py314.patch` must go once beets is
+  bumped past the fix.
 - Upstream dropped `py-pip` for `uv`.
 - **beets 2.x config migration, which is the dangerous part:**
   - `match.distance_weights.source` is renamed to `data_source`. A config

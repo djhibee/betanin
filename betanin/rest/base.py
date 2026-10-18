@@ -11,11 +11,17 @@ from flask_jwt_extended import verify_jwt_in_request
 import betanin.config.betanin as conf_betanin
 
 
+def allow_api_key(func):
+    "marks an endpoint as accepting the torrent client api key (as well as a jwt)"
+    func.allow_api_key = True
+    return func
+
+
 def auth_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         api_key = request.headers.get("X-API-Key")
-        if not api_key:
+        if not api_key or not getattr(func, "allow_api_key", False):
             verify_jwt_in_request()
             return func(*args, **kwargs)
         conf = conf_betanin.read()

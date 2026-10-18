@@ -3,29 +3,22 @@
 # today. See docs/FORK.md.
 #
 # Note this pins the OS layer going forward, not backwards: the apk packages
-# here are alpine 3.18 as of the pin date, which is newer than those in the
-# image originally built in March 2026. What is reproduced exactly is the
+# here are alpine 3.24 (python 3.14) as of the pin date; the base moved
+# 3.18 (EOL) -> 3.22 -> 3.24. What is reproduced exactly is the
 # Python dependency tree, which is where beets and all of our match tuning
 # live. See requirements-docker.txt.
 
-FROM node:16-alpine3.17@sha256:bbc110afcd56dea9d27969ce1c3585aac53192ad14b364b6c5cb1f25a144ad9f AS builder-frontend
+# node 22 (v22.23.3, alpine 3.24). The frontend is built with webpack 4, which
+# needs the legacy OpenSSL provider on node >= 17.
+FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder-frontend
 WORKDIR /src
 COPY betanin_client/ .
+#RUN npx update-browserslist-db@latest
 RUN npm install && \
-    PRODUCTION=true npm run-script build
+    NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f AS builder-mp3gain
-WORKDIR /tmp
-COPY alpine/mp3gain/APKBUILD .
-RUN apk update && \
-    apk add --no-cache abuild && \
-    abuild-keygen -a -n && \
-    cp /root/.abuild/*.pub /etc/apk/keys/ && \
-    REPODEST=/tmp/out abuild -F -r
-
-
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f AS builder-mp3val
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS builder-mp3val
 WORKDIR /tmp
 COPY alpine/mp3val/APKBUILD .
 RUN apk update && \
@@ -35,11 +28,10 @@ RUN apk update && \
     REPODEST=/tmp/out abuild -F -r
 
 
-FROM alpine:3.18@sha256:de0eb0b3f2a47ba1eb89389859a9bd88b28e82f5826b6969ad604979713c2d4f
-LABEL org.opencontainers.image.source https://github.com/aglowinthefield/betanin
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+LABEL org.opencontainers.image.source=https://github.com/aglowinthefield/betanin
 WORKDIR /src
 
-COPY --from=builder-mp3gain /tmp/out/*/*.apk /pkgs/
 COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 
 # Dependencies are installed BEFORE the source is copied, so that editing any
@@ -53,19 +45,38 @@ COPY --from=builder-mp3val /tmp/out/*/*.apk /pkgs/
 # The stub package is what makes the split possible -- `pip install .` needs a
 # package to exist before it will resolve the dependencies in pyproject.toml.
 # It is overwritten by the real install further down.
+#
+# alpine's python is marked externally-managed (PEP 668). Nothing else in the
+# image is installed from pip or depends on apk's python packages, so pip is
+# allowed to install into the system site-packages.
+#
+# gcc >= 14 (alpine >= 3.21) made incompatible-pointer-types an error. aubio 0.4.9's
+# C extension trips it (a const qualifier on numpy ufunc signatures); the CFLAGS
+# below restore the old warning so the pinned aubio still builds unchanged.
+#
+# numpy 1.26.2 has no python 3.14 wheel, so it is compiled here against
+# alpine's openblas, which therefore has to stay installed at runtime.
+#
+# patches/ holds the source fixes the pinned beets needs to run on
+# python 3.14. Each is applied to the installed package with --forward, so the
+# build fails loudly if one stops applying. See docs/FORK.md.
 COPY requirements-docker.txt constraints.txt pyproject.toml version.txt README.md ./
+COPY patches/ patches/
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN mkdir -p betanin && touch betanin/__init__.py && \
     apk add --no-cache --upgrade --virtual=build-dependencies \
         build-base cmake libffi-dev openssl-dev python3-dev jpeg-dev libpng-dev \
-        zlib-dev cargo llvm14-dev openblas openblas-dev libsndfile-dev && \
-    apk add --no-cache --upgrade sudo python3 py-pip libev chromaprint ffmpeg \
-        gstreamer flac keyfinder-cli libsndfile && \
+        zlib-dev cargo openblas-dev libsndfile-dev && \
+    apk add --no-cache --upgrade su-exec python3 py-pip libev chromaprint ffmpeg \
+        gstreamer flac keyfinder-cli libsndfile mp3gain openblas && \
     apk add --no-cache --allow-untrusted /pkgs/* && \
-    env LLVM_CONFIG="$(which llvm14-config)" pip install --no-cache-dir . \
+    env CFLAGS="-Wno-error=incompatible-pointer-types" pip install --no-cache-dir . \
         --requirement requirements-docker.txt --constraint constraints.txt && \
     pip install --no-cache-dir soundfile --constraint constraints.txt && \
+    site="$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')" && \
+    for p in patches/*.patch; do patch -d "$site" -p1 --forward -i "/src/$p" || exit 1; done && \
     apk del --purge build-dependencies && \
-    rm -rf /pkgs ~/.cache betanin
+    rm -rf /pkgs ~/.cache betanin patches
 
 # Only now the source, and a metadata-only reinstall over the stub.
 COPY . .
@@ -80,6 +91,5 @@ ENV UID=1000
 ENV GID=1000
 ENV HOME=/b
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONWARNINGS="ignore:Unverified HTTPS request"
 
 ENTRYPOINT [ "/src/docker-entry" ]
