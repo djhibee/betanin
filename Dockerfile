@@ -11,11 +11,20 @@
 # node 22 (v22.23.3, alpine 3.24). The frontend is built with webpack 4, which
 # needs the legacy OpenSSL provider on node >= 17.
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder-frontend
+# --- AVANT ---
+# WORKDIR /src
+# COPY betanin_client/ .
+# RUN npm install && ...
+
+# --- APRÈS OPTIMISATION DU CACHE NPM ---
 WORKDIR /src
+# 1. Copier uniquement les fichiers de configuration des dépendances
+COPY betanin_client/package.json betanin_client/package-lock.json ./
+# 2. Installer les dépendances (cette étape restera dans le cache Docker)
+RUN npm ci 
+# 3. Copier le reste du code source du client pour lancer le build
 COPY betanin_client/ .
-#RUN npx update-browserslist-db@latest
-RUN npm install && \
-    NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
+RUN NODE_OPTIONS=--openssl-legacy-provider PRODUCTION=true npm run-script build
 
 
 FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS builder-mp3val
