@@ -4,42 +4,59 @@ on:
     branches:
       - develop
   pull_request:
+
 jobs:
   test-frontend:
     name: Lint and test frontend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20 # Mis à jour vers une version LTS récente
+          cache: 'npm' # Active le cache npm automatique
+          cache-dependency-path: betanin_client/package-lock.json
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci # Version stricte et rapide pour le CI/CD
         working-directory: betanin_client
+
       - name: Lint
         run: npm run lint
         working-directory: betanin_client
+
       - name: Check formatting
         run: npm run check-formatting
         working-directory: betanin_client
+
   test-backend:
     name: Lint and test backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9.x
+          cache: 'pip' # Active le cache pip automatique
+          cache-dependency-path: |
+            setup.py
+            setup.cfg
+
       - name: Install dependencies
         run: pip install --user . .[dev]
+
       - name: Check imports
         run: isort --check-only $(git ls-files "*.py")
+
       - name: Check formatting
         run: black --check $(git ls-files "*.py")
+
       - name: Check types
-        if: ${{ false }} # do not have the energy for python right now
+        if: ${{ false }} # Toujours pas d'énergie pour ça aujourd'hui !
         run: pyright .
