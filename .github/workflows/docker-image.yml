@@ -2,9 +2,11 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "mochi" ]
+    branches: [ "mochi", copilot/audit-securite-fork  ]
   pull_request:
     branches: [ "mochi" ]
+  
+  workflow_dispatch: #  active le declenchement manuel
 
 jobs:
 
