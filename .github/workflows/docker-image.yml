@@ -2,7 +2,7 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "mochi", copilot/audit-securite-fork  ]
+    branches: [ "mochi" ]
   pull_request:
     branches: [ "mochi" ]
   
