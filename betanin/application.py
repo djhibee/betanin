@@ -3,12 +3,13 @@ import sqlalchemy_utils
 from flask import Flask
 from flask import render_template
 
+import betanin.config.betanin as conf_betanin
+
 # betanin
 import betanin.config.flask as conf_flask
-import betanin.config.betanin as conf_betanin
 import betanin.config.secret_key as conf_secret_key
-from betanin import events  # noqa
 from betanin import blueprints
+from betanin import events  # noqa
 from betanin.extensions import CORS
 from betanin.extensions import DB
 from betanin.extensions import JWT

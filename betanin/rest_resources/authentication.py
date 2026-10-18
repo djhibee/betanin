@@ -1,7 +1,7 @@
 # 3rd party
 from flask import request
-from flask_restx import abort
 from flask_jwt_extended import create_access_token
+from flask_restx import abort
 from werkzeug.exceptions import TooManyRequests
 
 # betanin
@@ -28,7 +28,9 @@ class LoginResource(BaseResource):
         if retry_after:
             error = TooManyRequests(retry_after=retry_after)
             error.data = {
-                "message": f"too many failed attempts, try again in {retry_after}s"
+                "message": (
+                    f"too many failed attempts, try again in {retry_after}s"
+                )
             }
             raise error
         args = req_models.CREDENTIALS.parse_args()

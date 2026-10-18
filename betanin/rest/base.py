@@ -12,7 +12,7 @@ import betanin.config.betanin as conf_betanin
 
 
 def allow_api_key(func):
-    "marks an endpoint as accepting the torrent client api key (as well as a jwt)"
+    "marks an endpoint as accepting the torrent client api key (and a jwt)"
     func.allow_api_key = True
     return func
 
