@@ -31,10 +31,21 @@ notifications. so anything supported there will work. but some include
 
 <hr>
 
-### installation
+### installation (without Docker)
 
 ```shell
-pip install --user betanin
+step1. (optional, do it if you want to isolate your install) python -m venv betanin-env
+step2. (optional, fo itif step 2.) source betanin-env/bin/activate
+# !Warning! "pip install --user betanin" uses PyPi (including betanin_client/dist/) and thus will fetch origin repo from  sentriz
+# Install backend only
+step3. pip install git+https://github.com/djhibee/betanin
+# Install with frontend from localrepo
+step3bis.
+a. git clone https://github.com/djhibee/betanin
+# build UI locally from the clone repo
+b. cd betanin_client && run npm ci && npm run build
+# install backend
+c. cd .. && pip install .
 ```
 
 <hr>
@@ -80,7 +91,7 @@ docker exec -it <container_id> betanin-shell
 
 ###### image
 
-`docker pull sentriz/betanin`
+`docker pull djhibee/betanin`
 
 ###### volumes `/b/.local/share/betanin/` for a persistent database
 
