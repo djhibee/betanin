@@ -35,6 +35,8 @@ notifications. so anything supported there will work. but some include
 
 ```shell
 pip install --user betanin
+# or this fork, straight from git (the web client is included)
+pip install --user git+https://github.com/djhibee/betanin
 ```
 
 <hr>
@@ -296,3 +298,10 @@ frontend served at _<http://localhost:8081/>_. it will look for a backend
 listening on port 9393 locally. after that you can edit anything in
 `betanin_client/src`, it will be linted and automatically reflected in
 your web browser.
+
+the built frontend in `betanin_client/dist/` is committed, so that
+`pip install git+https://github.com/djhibee/betanin` ships the web client
+without needing node. after changing anything in `betanin_client/`, rebuild
+it with `npm --prefix betanin_client/ ci && npm --prefix betanin_client/ run build`
+and commit the result (old hashed files in `dist/assets/` are removed by
+the build, commit those deletions too)
