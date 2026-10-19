@@ -1,11 +1,6 @@
 name: Docker Image CI
 
-on:
-  push:
-    branches: [ "mochi" ]
-  pull_request:
-    branches: [ "mochi" ]
-  
+on:  
   workflow_dispatch: #  active le declenchement manuel
 
 jobs:
