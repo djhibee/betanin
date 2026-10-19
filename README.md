@@ -105,7 +105,7 @@ current beets home if you have one)
 
 ```yml
 betanin:
-  image: sentriz/betanin
+  image: djhibee/betanin
   ports:
     - 9393:9393
   restart: unless-stopped
